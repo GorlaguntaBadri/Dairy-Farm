@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>SA Dairy Farm Admin</title>
+<style>
+body{margin:0;background:#f4f8f4;color:#172018;font-family:Arial,sans-serif}.top{background:#06451f;color:#fff;padding:22px}.wrap{max-width:1200px;margin:25px auto;padding:0 16px}.login,.dashboard{background:#fff;border-radius:16px;padding:28px;box-shadow:0 8px 30px #0001}.login{max-width:380px;margin:60px auto}input{width:100%;padding:12px;margin:7px 0 15px;box-sizing:border-box;border:1px solid #ccd8ce;border-radius:8px}.btn{padding:11px 17px;border:0;border-radius:8px;background:#76b82a;color:#063b1d;font-weight:800;cursor:pointer}.logout{float:right;background:#fff;color:#06451f}.cards{display:flex;gap:15px;flex-wrap:wrap;margin-bottom:20px}.card{background:#fff;padding:17px 20px;border-radius:12px;min-width:150px;box-shadow:0 5px 20px #0001}.card b{display:block;font-size:25px;color:#06451f}.table{overflow:auto;background:#fff;border-radius:12px}table{border-collapse:collapse;width:100%;min-width:1000px}th,td{padding:11px;border-bottom:1px solid #e5ebe5;text-align:left;font-size:13px}th{background:#edf7ed;color:#06451f}select{padding:6px;border-radius:7px;border:1px solid #ccd8ce}.msg{color:#b3261e;font-size:13px;min-height:18px}
+</style></head>
+<body>
+<div class="top"><button id="logout" class="btn logout" style="display:none">Logout</button><h2>SA Dairy Farm — Admin</h2><div>Order management • Palamaner</div></div>
+<div class="wrap">
+<section id="login" class="login"><h2>Admin Login</h2><div class="msg" id="msg"></div><label>Username</label><input id="user" value="admin"><label>Password</label><input id="pass" type="password"><button class="btn" onclick="loginUser()">Login</button></section>
+<section id="dash" class="dashboard" style="display:none"><button class="btn" onclick="loadOrders()">↻ Refresh</button><div class="cards"><div class="card">Orders<b id="count">0</b></div><div class="card">Pending<b id="pending">0</b></div><div class="card">Revenue<b id="revenue">₹0</b></div></div><div class="table"><table><thead><tr><th>Order</th><th>Customer</th><th>Phone</th><th>Qty</th><th>Total</th><th>Date</th><th>Address</th><th>Status</th></tr></thead><tbody id="rows"></tbody></table></div></section>
+</div>
+<script>
+const api="/api";
+const loginSection = document.getElementById("login");
+const dashSection = document.getElementById("dash");
+const logoutBtn = document.getElementById("logout");
+const msgEl = document.getElementById("msg");
+const userEl = document.getElementById("user");
+const passEl = document.getElementById("pass");
+
+async function loginUser(){
+  msgEl.textContent="";
+  const r = await fetch(api+"/admin/login",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({username:userEl.value,password:passEl.value})});
+  const d = await r.json();
+  if(!r.ok){msgEl.textContent=d.message;return}
+  showDashboard();
+  loadOrders();
+}
+
+function showDashboard(){
+  loginSection.style.display="none";
+  dashSection.style.display="block";
+  logoutBtn.style.display="block";
+}
+
+async function loadOrders(){
+  const r=await fetch(api+"/admin/orders");if(r.status===401){location.reload();return}
+  const d=await r.json(),a=d.orders||[];
+  count.textContent=a.length;
+  pending.textContent=a.filter(x=>x.status==="Pending").length;
+  revenue.textContent="₹"+a.filter(x=>x.status!=="Cancelled").reduce((s,x)=>s+x.totalAmount,0);
+  rows.innerHTML=a.map(o=>`<tr><td><b>${esc(o.id)}</b><br><small>${new Date(o.createdAt).toLocaleString("en-IN")}</small></td><td>${esc(o.name)}</td><td>${esc(o.phone)}</td><td>${o.quantity} L</td><td>₹${o.totalAmount}</td><td>${o.deliveryDate}</td><td>${esc(o.address)}</td><td><select onchange="setStatus('${o.id}',this.value)">${["Pending","Confirmed","Delivered","Cancelled"].map(s=>`<option ${s===o.status?"selected": ""}>${s}</option>`).join("")}</select></td></tr>`).join("")||'<tr><td colspan="8">No orders yet.</td></tr>'
+}
+
+async function setStatus(id,status){await fetch(api+"/admin/orders/"+id+"/status",{method:"PATCH",headers:{"Content-Type":"application/json"},body:JSON.stringify({status})});loadOrders()}
+logoutBtn.onclick=async()=>{await fetch(api+"/admin/logout",{method:"POST"});location.reload()}
+function esc(v){return String(v).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;","'":"&#039;"}[m]))}
+fetch(api+"/admin/me").then(r=>{if(r.ok){showDashboard();loadOrders()}})
+</script></body></html>
