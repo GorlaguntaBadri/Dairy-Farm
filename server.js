@@ -178,7 +178,7 @@ app.use((req,res,next) => {
   next();
 });
 
-app.get(/^(?!\/api\/).*/, (req,res) => res.sendFile(path.join(__dirname,"..","index.html")));
+app.get(/^(?!\/api\/).*/, (req,res) => res.sendFile(path.join(__dirname, "index.html"));
 
 connectDB()
   .then(() => app.listen(PORT, "0.0.0.0", () => console.log(`SA Dairy Farm running on port ${PORT}`)))
