@@ -6,6 +6,7 @@ const rateLimit = require("express-rate-limit");
 const cookieParser = require("cookie-parser");
 const jwt = require("jsonwebtoken");
 const bcrypt = require("bcryptjs");
+const fs = require("fs");
 const path = require("path");
 const { MongoClient } = require("mongodb");
 const { createOrderStore, validateOrder: validateOrderData } = require("./order-store");
@@ -38,6 +39,24 @@ let db;
 let orders;
 let useMemoryStore = false;
 const memoryOrders = createOrderStore();
+
+function resolveProjectRoot() {
+  const candidates = [
+    path.resolve(__dirname, ".."),
+    path.resolve(__dirname, "..", ".."),
+    path.resolve(__dirname)
+  ];
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(path.join(candidate, "index.html"))) return candidate;
+    const nestedProject = path.join(candidate, "SA_Dairy_Farm_Production");
+    if (fs.existsSync(path.join(nestedProject, "index.html"))) return nestedProject;
+  }
+
+  return path.resolve(__dirname, "..");
+}
+
+const projectRoot = resolveProjectRoot();
 
 async function connectDB() {
   if (!process.env.MONGODB_URI) {
@@ -169,7 +188,7 @@ app.patch("/api/admin/orders/:id/status", adminOnly, async (req,res) => {
   } catch { res.status(500).json({success:false,message:"Unable to update order."}); }
 });
 
-app.use(express.static(path.join(__dirname, "..")));
+app.use(express.static(projectRoot));
 
 app.get("/admin", (req,res) => res.sendFile(path.join(__dirname,"admin.html")));
 
@@ -178,9 +197,7 @@ app.use((req,res,next) => {
   next();
 });
 
-app.get(/^(?!\/api\/).*/, (req, res) => {
-  res.sendFile(path.join(__dirname, "index.html"));
-});
+app.get(/^(?!\/api\/).*/, (req,res) => res.sendFile(path.join(projectRoot, "index.html")));
 
 connectDB()
   .then(() => app.listen(PORT, "0.0.0.0", () => console.log(`SA Dairy Farm running on port ${PORT}`)))
